@@ -33,12 +33,14 @@ export default function DashboardPage() {
   const [reviewRating, setReviewRating] = useState(5)
   const [reviews, setReviews] = useState<Record<string, any[]>>({})
   const [clientProfiles, setClientProfiles] = useState<Record<string, any>>({})
+  const [adminEmail, setAdminEmail] = useState('')
 
   useEffect(() => { fetchData() }, [])
 
   const fetchData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
+    setAdminEmail(user.email || '')
 
     const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
     setProfile(prof)
@@ -58,9 +60,11 @@ export default function DashboardPage() {
     // Для водителя — подгружаем профили клиентов (имя + телефон)
     if (prof?.role === 'driver' && reqs.length > 0) {
       const clientIds = [...new Set(reqs.map((r: any) => r.client_id).filter(Boolean))]
+      console.log('clientIds to fetch:', clientIds)
       if (clientIds.length > 0) {
-        const { data: clientData } = await supabase
+        const { data: clientData, error: clientError } = await supabase
           .from('profiles').select('id, name, phone').in('id', clientIds)
+        console.log('clientData:', clientData, 'error:', clientError)
         const map: Record<string, any> = {}
         for (const c of clientData || []) map[c.id] = c
         setClientProfiles(map)
@@ -153,6 +157,11 @@ export default function DashboardPage() {
           <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 font-medium text-sm transition-colors">
             <span>👤</span> Профиль
           </Link>
+          {adminEmail === 'aslanesenalin0@gmail.com' && (
+            <Link href="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 font-medium text-sm transition-colors border border-transparent hover:border-red-500/20">
+              <span>🛡</span> Админка
+            </Link>
+          )}
         </nav>
         <div className="p-4 border-t border-zinc-900">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900">
