@@ -1,50 +1,209 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
-export default function CreateRequest() {
-    const router = useRouter()
-    const [form, setForm] = useState({
-        departure: '', destination: '', description: '', datetime: '', price: ''
-    })
+const statusLabel: Record<string, { label: string; color: string }> = {
+  pending: { label: 'Ожидает водителя', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  accepted: { label: 'В работе', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  completed: { label: 'Выполнено', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+}
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        const { data: { user } } = await supabase.auth.getUser()
+export default function DashboardPage() {
+  const router = useRouter()
+  const [profile, setProfile] = useState<any>(null)
+  const [requests, setRequests] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'active' | 'all'>('active')
 
-        if (!user) return
+  useEffect(() => { fetchData() }, [])
 
-        const { error } = await supabase.from('requests').insert([{
-            client_id: user.id,
-            ...form,
-            price: form.price ? parseFloat(form.price) : null
-        }])
+  const fetchData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
 
-        if (error) alert(error.message)
-        else router.push('/dashboard')
+    const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    setProfile(prof)
+
+    if (prof?.role === 'client') {
+      const { data } = await supabase.from('requests').select('*').eq('client_id', user.id).order('created_at', { ascending: false })
+      setRequests(data || [])
+    } else {
+      const { data } = await supabase.from('requests').select('*')
+        .or(`status.eq.pending,driver_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+      setRequests(data || [])
     }
+    setLoading(false)
+  }
 
-    return (
-        <div className="max-w-2xl mx-auto mt-10 p-6 bg-white rounded-lg shadow">
-            <h2 className="text-2xl font-bold mb-4 text-black">Новая заявка на перевозку</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-                <input type="text" placeholder="Откуда" className="w-full p-2 border rounded text-black"
-                    onChange={e => setForm({ ...form, departure: e.target.value })} required />
-                <input type="text" placeholder="Куда" className="w-full p-2 border rounded text-black"
-                    onChange={e => setForm({ ...form, destination: e.target.value })} required />
-                <textarea placeholder="Что везем? Описание груза" className="w-full p-2 border rounded text-black"
-                    onChange={e => setForm({ ...form, description: e.target.value })} required />
-                <input type="datetime-local" className="w-full p-2 border rounded text-black"
-                    onChange={e => setForm({ ...form, datetime: e.target.value })} required />
-                <input type="number" placeholder="Предлагаемая цена (₽) - по желанию" className="w-full p-2 border rounded text-black"
-                    onChange={e => setForm({ ...form, price: e.target.value })} />
+  const acceptRequest = async (id: string) => {
+    const { error } = await supabase.from('requests').update({ status: 'accepted', driver_id: profile.id }).eq('id', id)
+    if (!error) fetchData()
+  }
 
-                <button type="submit" className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700">
-                    Опубликовать заявку
-                </button>
-            </form>
+  const completeRequest = async (id: string) => {
+    const { error } = await supabase.from('requests').update({ status: 'completed' }).eq('id', id)
+    if (!error) fetchData()
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/')
+  }
+
+  const activeRequests = requests.filter(r => r.status !== 'completed')
+  const shown = tab === 'active' ? activeRequests : requests
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Sidebar */}
+      <div className="fixed left-0 top-0 h-full w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col z-20 hidden md:flex">
+        <div className="p-6 border-b border-zinc-900">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-500 rounded-lg flex items-center justify-center">
+              <span className="text-black font-black text-lg">G</span>
+            </div>
+            <span className="font-black text-lg tracking-tight">GazelleGo</span>
+          </div>
         </div>
-    )
+
+        <nav className="flex-1 p-4 space-y-1">
+          <div className="text-zinc-600 text-xs font-semibold uppercase tracking-wider px-3 mb-3">Меню</div>
+          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-900 text-white font-medium text-sm">
+            <span>🏠</span> Лента заявок
+          </Link>
+          {profile?.role === 'client' && (
+            <Link href="/dashboard/create" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 font-medium text-sm transition-colors">
+              <span>➕</span> Новая заявка
+            </Link>
+          )}
+          <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 font-medium text-sm transition-colors">
+            <span>👤</span> Профиль
+          </Link>
+        </nav>
+
+        {/* Profile card */}
+        <div className="p-4 border-t border-zinc-900">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-900">
+            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-black font-black text-sm">
+              {profile?.name?.[0]?.toUpperCase() || '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">{profile?.name || 'Пользователь'}</div>
+              <div className="text-xs text-zinc-500 capitalize">{profile?.role === 'client' ? 'Клиент' : 'Водитель'}</div>
+            </div>
+            <button onClick={handleLogout} className="text-zinc-600 hover:text-red-400 transition-colors text-xs">
+              Выйти
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="md:ml-64 p-6 md:p-10">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-black">
+              {profile?.role === 'client' ? '📦 Мои заявки' : '🚛 Биржа грузов'}
+            </h1>
+            <p className="text-zinc-500 text-sm mt-1">
+              {profile?.role === 'client'
+                ? `${activeRequests.length} активных заявок`
+                : `${requests.filter(r => r.status === 'pending').length} свободных заказов`}
+            </p>
+          </div>
+          {profile?.role === 'client' && (
+            <Link href="/dashboard/create"
+              className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2.5 rounded-xl transition-colors text-sm flex items-center gap-2">
+              ➕ Создать заявку
+            </Link>
+          )}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 p-1 bg-zinc-950 border border-zinc-900 rounded-xl w-fit">
+          {[{ key: 'active', label: 'Активные' }, { key: 'all', label: 'Все' }].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key as any)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === t.key ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Cards */}
+        <div className="space-y-3">
+          {shown.length === 0 && (
+            <div className="text-center py-20 text-zinc-600">
+              <div className="text-5xl mb-4">📭</div>
+              <p>Заявок пока нет</p>
+              {profile?.role === 'client' && (
+                <Link href="/dashboard/create" className="text-amber-500 hover:text-amber-400 text-sm mt-2 inline-block">
+                  Создать первую заявку →
+                </Link>
+              )}
+            </div>
+          )}
+
+          {shown.map(req => {
+            const st = statusLabel[req.status] || statusLabel.pending
+            return (
+              <div key={req.id} className="bg-zinc-950 border border-zinc-900 hover:border-zinc-700 rounded-2xl p-6 transition-colors group">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${st.color}`}>{st.label}</span>
+                      <span className="text-zinc-600 text-xs">{new Date(req.created_at).toLocaleDateString('ru-RU')}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-lg font-bold mb-2">
+                      <span>{req.departure}</span>
+                      <span className="text-amber-500">→</span>
+                      <span>{req.destination}</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm mb-3 line-clamp-2">{req.description}</p>
+                    <div className="flex items-center gap-4 text-sm text-zinc-500">
+                      <span>🕐 {new Date(req.datetime).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      {req.price && <span className="text-green-400 font-semibold">💰 {req.price.toLocaleString()} ₸</span>}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {/* Driver buttons */}
+                    {profile?.role === 'driver' && req.status === 'pending' && (
+                      <button onClick={() => acceptRequest(req.id)}
+                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                        Принять
+                      </button>
+                    )}
+                    {profile?.role === 'driver' && req.status === 'accepted' && req.driver_id === profile.id && (
+                      <button onClick={() => completeRequest(req.id)}
+                        className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors">
+                        Завершить
+                      </button>
+                    )}
+                    {/* Chat button */}
+                    {(req.status === 'accepted') && (
+                      <Link href={`/dashboard/chat/${req.id}`}
+                        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors text-center">
+                        💬 Чат
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
 }
