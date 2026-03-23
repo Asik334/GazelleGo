@@ -51,26 +51,15 @@ export default function AdminPage() {
   }
 
   const deleteRequest = async (id: string) => {
-    const r1 = await supabase.from('messages').delete().eq('request_id', id)
-    const r2 = await supabase.from('reviews').delete().eq('request_id', id)
-    const r3 = await supabase.from('requests').delete().eq('id', id)
-    console.log('deleteRequest errors:', r1.error, r2.error, r3.error)
-    if (r3.error) { alert('Ошибка: ' + r3.error.message); return }
+    const { error } = await supabase.rpc('admin_delete_request', { request_id: id })
+    if (error) { alert('Ошибка: ' + error.message); return }
     setRequests(prev => prev.filter(r => r.id !== id))
     setDeleteConfirm(null)
   }
 
   const deleteUser = async (id: string) => {
-    const userReqs = requests.filter(r => r.client_id === id || r.driver_id === id).map(r => r.id)
-    for (const rid of userReqs) {
-      await supabase.from('messages').delete().eq('request_id', rid)
-      await supabase.from('reviews').delete().eq('request_id', rid)
-    }
-    const r1 = await supabase.from('requests').delete().or(`client_id.eq.${id},driver_id.eq.${id}`)
-    const r2 = await supabase.from('reviews').delete().or(`client_id.eq.${id},driver_id.eq.${id}`)
-    const r3 = await supabase.from('profiles').delete().eq('id', id)
-    console.log('deleteUser errors:', r1.error, r2.error, r3.error)
-    if (r3.error) { alert('Ошибка: ' + r3.error.message); return }
+    const { error } = await supabase.rpc('admin_delete_user', { target_user_id: id })
+    if (error) { alert('Ошибка: ' + error.message); return }
     setUsers(prev => prev.filter(u => u.id !== id))
     setRequests(prev => prev.filter(r => r.client_id !== id && r.driver_id !== id))
     setDeleteConfirm(null)
