@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'active' | 'all'>('active')
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [reviewModal, setReviewModal] = useState<{ requestId: string; driverId: string } | null>(null)
+  const [reviewModal, setReviewModal] = useState<{ requestId: string; driverId: string; orderNumber: number; fromLocation: string; toLocation: string } | null>(null)
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviews, setReviews] = useState<Record<string, any[]>>({})
@@ -54,7 +54,6 @@ export default function DashboardPage() {
     }
     setRequests(reqs)
 
-    // Load reviews for completed requests
     const completedIds = reqs.filter(r => r.status === 'completed').map(r => r.id)
     if (completedIds.length > 0) {
       const { data: revData } = await supabase.from('reviews').select('*').in('request_id', completedIds)
@@ -86,6 +85,10 @@ export default function DashboardPage() {
       request_id: reviewModal.requestId,
       driver_id: reviewModal.driverId,
       client_id: profile.id,
+      client_name: profile.name || 'Клиент',
+      order_number: reviewModal.orderNumber,
+      from_location: reviewModal.fromLocation,
+      to_location: reviewModal.toLocation,
       rating: reviewRating,
       text: reviewText.trim(),
     }])
@@ -190,19 +193,23 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {shown.map(req => {
+          {shown.map((req, index) => {
             const st = statusLabel[req.status] || statusLabel.open
             const isExpanded = expanded === req.id
             const reqReviews = reviews[req.id] || []
             const hasReview = reqReviews.some(r => r.client_id === profile?.id)
+            const orderNum = req.order_number || (requests.length - requests.findIndex(r => r.id === req.id))
 
             return (
               <div key={req.id} className="bg-zinc-950 border border-zinc-900 hover:border-zinc-700 rounded-2xl overflow-hidden transition-colors">
-                {/* Card header - always visible */}
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-3 flex-wrap">
+                        {/* Order number badge */}
+                        <span className="text-xs font-black text-zinc-500 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-full font-mono">
+                          №{orderNum}
+                        </span>
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${st.color}`}>{st.label}</span>
                         <span className="text-zinc-600 text-xs">{new Date(req.created_at).toLocaleDateString('ru-RU')}</span>
                         {req.cargo_type && (
@@ -246,7 +253,13 @@ export default function DashboardPage() {
                         </Link>
                       )}
                       {req.status === 'completed' && profile?.role === 'client' && !hasReview && req.driver_id && (
-                        <button onClick={() => setReviewModal({ requestId: req.id, driverId: req.driver_id })}
+                        <button onClick={() => setReviewModal({
+                          requestId: req.id,
+                          driverId: req.driver_id,
+                          orderNumber: orderNum,
+                          fromLocation: req.from_location,
+                          toLocation: req.to_location,
+                        })}
                           className="bg-zinc-900 hover:bg-zinc-800 border border-amber-500/30 text-amber-400 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
                           ⭐ Отзыв
                         </button>
@@ -294,8 +307,6 @@ export default function DashboardPage() {
                         <div className="text-zinc-300 text-sm bg-zinc-900 rounded-xl p-3 border border-zinc-800">{req.description}</div>
                       </div>
                     )}
-
-                    {/* Reviews */}
                     {reqReviews.length > 0 && (
                       <div>
                         <div className="text-zinc-600 text-xs uppercase tracking-wider mb-2">Отзывы</div>
@@ -324,7 +335,15 @@ export default function DashboardPage() {
       {reviewModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-md">
-            <h2 className="text-lg font-bold mb-4">⭐ Оставить отзыв</h2>
+            <h2 className="text-lg font-bold mb-1">⭐ Оставить отзыв</h2>
+            {/* Order info in modal */}
+            <div className="text-zinc-500 text-sm mb-4 bg-zinc-900 rounded-xl px-4 py-3 border border-zinc-800">
+              <span className="text-zinc-600 font-mono text-xs">№{reviewModal.orderNumber}</span>
+              <span className="mx-2 text-zinc-700">·</span>
+              <span className="text-zinc-300">{reviewModal.fromLocation}</span>
+              <span className="text-amber-500 mx-1">→</span>
+              <span className="text-zinc-300">{reviewModal.toLocation}</span>
+            </div>
             <div className="mb-4">
               <div className="text-zinc-400 text-sm mb-2">Оценка</div>
               <div className="flex gap-2">

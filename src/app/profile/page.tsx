@@ -139,16 +139,32 @@ export default function ProfilePage() {
           ) : (
             <div className="space-y-3">
               {reviews.map(rev => (
-                <div key={rev.id} className="border-b border-zinc-900 last:border-0 pb-3 last:pb-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm">Клиент</span>
+                <div key={rev.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+                  {/* Header: client name + stars */}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-sm text-white">{rev.client_name || 'Клиент'}</span>
                     <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map(n => (
+                      {[1,2,3,4,5].map(n => (
                         <span key={n} className={n <= rev.rating ? 'text-amber-400' : 'text-zinc-700'}>★</span>
                       ))}
                     </div>
                   </div>
-                  {rev.text && <p className="text-zinc-400 text-sm">{rev.text}</p>}
+                  {/* Order number + route */}
+                  {(rev.order_number || rev.from_location) && (
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 mb-2">
+                      {rev.order_number && <span className="font-mono bg-zinc-800 px-2 py-0.5 rounded-full">№{rev.order_number}</span>}
+                      {rev.from_location && (
+                        <>
+                          <span className="text-zinc-400">{rev.from_location}</span>
+                          <span className="text-amber-500">→</span>
+                          <span className="text-zinc-400">{rev.to_location}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Review text */}
+                  {rev.text && <p className="text-zinc-300 text-sm">{rev.text}</p>}
+                  <div className="text-zinc-600 text-xs mt-2">{new Date(rev.created_at).toLocaleDateString('ru-RU')}</div>
                 </div>
               ))}
             </div>
