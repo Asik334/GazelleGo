@@ -78,7 +78,7 @@ export default function ChatPage() {
         </div>
         <div>
           <div className="font-bold text-sm">
-            {request?.departure} → {request?.destination}
+            {request?.from_location} → {request?.to_location}
           </div>
           <div className="text-zinc-500 text-xs">{request?.description?.slice(0, 50)}...</div>
         </div>

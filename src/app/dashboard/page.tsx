@@ -165,9 +165,9 @@ export default function DashboardPage() {
                       <span className="text-zinc-600 text-xs">{new Date(req.created_at).toLocaleDateString('ru-RU')}</span>
                     </div>
                     <div className="flex items-center gap-2 text-lg font-bold mb-2">
-                      <span>{req.departure}</span>
+                      <span>{req.from_location}</span>
                       <span className="text-amber-500">→</span>
-                      <span>{req.destination}</span>
+                      <span>{req.to_location}</span>
                     </div>
                     <p className="text-zinc-400 text-sm mb-3 line-clamp-2">{req.description}</p>
                     <div className="flex items-center gap-4 text-sm text-zinc-500">

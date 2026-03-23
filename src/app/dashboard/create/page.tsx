@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 export default function CreateRequestPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ departure: '', destination: '', description: '', datetime: '', price: '', cargo_type: 'general' })
+  const [form, setForm] = useState({ from_location: '', to_location: '', description: '', datetime: '', price: '', cargo_type: 'general' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -28,8 +28,8 @@ export default function CreateRequestPage() {
 
     const { error } = await supabase.from('requests').insert([{
       client_id: user.id,
-      departure: form.departure,
-      destination: form.destination,
+      from_location: form.from_location,
+      to_location: form.to_location,
       description: form.description,
       datetime: form.datetime,
       cargo_type: form.cargo_type,
@@ -58,14 +58,14 @@ export default function CreateRequestPage() {
             <h2 className="font-bold text-sm text-zinc-400 uppercase tracking-wider">Маршрут</h2>
             <div>
               <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2 block">Откуда</label>
-              <input type="text" value={form.departure} onChange={e => setForm({ ...form, departure: e.target.value })}
+              <input type="text" value={form.from_location} onChange={e => setForm({ ...form, from_location: e.target.value })}
                 placeholder="Город, адрес"
                 className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 outline-none transition-colors text-sm"
                 required />
             </div>
             <div>
               <label className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2 block">Куда</label>
-              <input type="text" value={form.destination} onChange={e => setForm({ ...form, destination: e.target.value })}
+              <input type="text" value={form.to_location} onChange={e => setForm({ ...form, to_location: e.target.value })}
                 placeholder="Город, адрес"
                 className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 outline-none transition-colors text-sm"
                 required />
