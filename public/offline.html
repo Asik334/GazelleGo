@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f59e0b" />
+  <title>GazelleGo — Нет соединения</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100dvh;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .logo {
+      width: 64px; height: 64px;
+      background: #f59e0b;
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 32px; font-weight: 900; color: #0a0a0a;
+    }
+    h1 { font-size: clamp(20px, 5vw, 28px); font-weight: 800; margin-bottom: 12px; }
+    p { color: #71717a; font-size: 15px; line-height: 1.6; max-width: 320px; margin: 0 auto 32px; }
+    .icon { font-size: 56px; margin-bottom: 20px; }
+    button {
+      background: #f59e0b; color: #0a0a0a;
+      border: none; border-radius: 12px;
+      padding: 14px 28px; font-size: 15px; font-weight: 700;
+      cursor: pointer; min-height: 48px;
+      transition: background 0.2s;
+    }
+    button:hover { background: #fbbf24; }
+    .status { margin-top: 20px; font-size: 13px; color: #52525b; }
+  </style>
+</head>
+<body>
+  <div class="icon">📡</div>
+  <div class="logo">G</div>
+  <h1>Нет подключения к сети</h1>
+  <p>Проверьте интернет-соединение и попробуйте снова. Ваши данные сохранены и появятся при восстановлении связи.</p>
+  <button onclick="window.location.reload()">Повторить попытку</button>
+  <div class="status" id="status">Ожидание соединения...</div>
+
+  <script>
+    // Auto-retry when connection restored
+    window.addEventListener('online', () => {
+      document.getElementById('status').textContent = 'Соединение восстановлено! Перезагружаем...';
+      setTimeout(() => window.location.href = '/', 800);
+    });
+    window.addEventListener('offline', () => {
+      document.getElementById('status').textContent = 'Соединение отсутствует';
+    });
+    if (navigator.onLine) {
+      document.getElementById('status').textContent = 'Соединение доступно — нажмите «Повторить»';
+    }
+  </script>
+</body>
+</html>
