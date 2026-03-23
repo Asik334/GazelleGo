@@ -34,7 +34,7 @@ export default function CreateRequestPage() {
       datetime: form.datetime,
       cargo_type: form.cargo_type,
       price: form.price ? parseFloat(form.price) : null,
-      status: 'pending',
+      status: 'open',
     }])
     if (error) setError(error.message)
     else router.push('/dashboard')

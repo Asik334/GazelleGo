@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const statusLabel: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Ожидает водителя', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  open: { label: 'Ожидает водителя', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
   accepted: { label: 'В работе', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  in_progress: { label: 'В пути', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
   completed: { label: 'Выполнено', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+  cancelled: { label: 'Отменено', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
 }
 
 export default function DashboardPage() {
@@ -32,7 +34,7 @@ export default function DashboardPage() {
       setRequests(data || [])
     } else {
       const { data } = await supabase.from('requests').select('*')
-        .or(`status.eq.pending,driver_id.eq.${user.id}`)
+        .or(`status.eq.open,driver_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
       setRequests(data || [])
     }
@@ -119,7 +121,7 @@ export default function DashboardPage() {
             <p className="text-zinc-500 text-sm mt-1">
               {profile?.role === 'client'
                 ? `${activeRequests.length} активных заявок`
-                : `${requests.filter(r => r.status === 'pending').length} свободных заказов`}
+                : `${requests.filter(r => r.status === 'open').length} свободных заказов`}
             </p>
           </div>
           {profile?.role === 'client' && (
@@ -155,7 +157,7 @@ export default function DashboardPage() {
           )}
 
           {shown.map(req => {
-            const st = statusLabel[req.status] || statusLabel.pending
+            const st = statusLabel[req.status] || statusLabel.open
             return (
               <div key={req.id} className="bg-zinc-950 border border-zinc-900 hover:border-zinc-700 rounded-2xl p-6 transition-colors group">
                 <div className="flex items-start justify-between gap-4">
@@ -178,7 +180,7 @@ export default function DashboardPage() {
 
                   <div className="flex flex-col gap-2 shrink-0">
                     {/* Driver buttons */}
-                    {profile?.role === 'driver' && req.status === 'pending' && (
+                    {profile?.role === 'driver' && req.status === 'open' && (
                       <button onClick={() => acceptRequest(req.id)}
                         className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition-colors">
                         Принять
