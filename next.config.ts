@@ -50,17 +50,9 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      // Tree-shake unused modules more aggressively
-      config.optimization = {
-        ...config.optimization,
-        sideEffects: true,
-      };
-    }
-    return config;
-  },
+  // Turbopack (default in Next.js 16) — empty config silences the warning
+  // webpack config removed: incompatible with Turbopack
+  turbopack: {},
 };
 
 export default nextConfig;
