@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [reviewText, setReviewText] = useState('')
   const [reviewRating, setReviewRating] = useState(5)
   const [reviews, setReviews] = useState<Record<string, any[]>>({})
+  const [clientProfiles, setClientProfiles] = useState<Record<string, any>>({})
 
   useEffect(() => { fetchData() }, [])
 
@@ -53,6 +54,18 @@ export default function DashboardPage() {
       reqs = data || []
     }
     setRequests(reqs)
+
+    // Для водителя — подгружаем профили клиентов (имя + телефон)
+    if (prof?.role === 'driver' && reqs.length > 0) {
+      const clientIds = [...new Set(reqs.map((r: any) => r.client_id).filter(Boolean))]
+      if (clientIds.length > 0) {
+        const { data: clientData } = await supabase
+          .from('profiles').select('id, name, phone').in('id', clientIds)
+        const map: Record<string, any> = {}
+        for (const c of clientData || []) map[c.id] = c
+        setClientProfiles(map)
+      }
+    }
 
     const completedIds = reqs.filter(r => r.status === 'completed').map(r => r.id)
     if (completedIds.length > 0) {
@@ -305,6 +318,27 @@ export default function DashboardPage() {
                       <div>
                         <div className="text-zinc-600 text-xs uppercase tracking-wider mb-1">Описание груза</div>
                         <div className="text-zinc-300 text-sm bg-zinc-900 rounded-xl p-3 border border-zinc-800">{req.description}</div>
+                      </div>
+                    )}
+                    {/* Контакт клиента — только для водителя */}
+                    {profile?.role === 'driver' && clientProfiles[req.client_id] && (
+                      <div>
+                        <div className="text-zinc-600 text-xs uppercase tracking-wider mb-2">Контакт клиента</div>
+                        <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3">
+                          <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-sm shrink-0">
+                            {clientProfiles[req.client_id].name?.[0]?.toUpperCase() || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-semibold text-sm">{clientProfiles[req.client_id].name || 'Клиент'}</div>
+                            {clientProfiles[req.client_id].phone ? (
+                              <a href={`tel:${clientProfiles[req.client_id].phone}`} className="text-amber-400 text-sm hover:text-amber-300 transition-colors">
+                                📞 {clientProfiles[req.client_id].phone}
+                              </a>
+                            ) : (
+                              <div className="text-zinc-500 text-sm">Телефон не указан</div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                     {reqReviews.length > 0 && (
