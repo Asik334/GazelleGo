@@ -26,10 +26,10 @@ export default function ProfilePage() {
     setName(prof?.name || '')
     setPhone(prof?.phone || '')
 
-    // Reviews
+    // Reviews for driver
     const { data: revData } = await supabase.from('reviews')
-      .select('*, profiles!reviews_author_id_fkey(name)')
-      .eq('target_id', user.id)
+      .select('*')
+      .eq('driver_id', user.id)
       .order('created_at', { ascending: false })
     setReviews(revData || [])
 
@@ -141,14 +141,14 @@ export default function ProfilePage() {
               {reviews.map(rev => (
                 <div key={rev.id} className="border-b border-zinc-900 last:border-0 pb-3 last:pb-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-sm">{rev.profiles?.name || 'Пользователь'}</span>
+                    <span className="font-semibold text-sm">Клиент</span>
                     <div className="flex gap-0.5">
                       {[1, 2, 3, 4, 5].map(n => (
                         <span key={n} className={n <= rev.rating ? 'text-amber-400' : 'text-zinc-700'}>★</span>
                       ))}
                     </div>
                   </div>
-                  {rev.comment && <p className="text-zinc-400 text-sm">{rev.comment}</p>}
+                  {rev.text && <p className="text-zinc-400 text-sm">{rev.text}</p>}
                 </div>
               ))}
             </div>
