@@ -11,13 +11,14 @@ const cargoTypes = [
   { value: 'heavy',     label: '🏋️ Тяжёлый' },
   { value: 'furniture', label: '🛋️ Мебель' },
   { value: 'food',      label: '🍎 Продукты' },
+  { value: 'livestock', label: '🐄 Скот' },
 ]
 
 export default function CreateRequestPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     from_location: '', to_location: '', description: '',
-    datetime: '', price: '', cargo_type: 'general',
+    datetime: '', price: '', cargo_type: 'general', weight: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,6 +41,7 @@ export default function CreateRequestPage() {
         datetime: form.datetime,
         cargo_type: form.cargo_type,
         price: form.price ? parseFloat(form.price) : null,
+        weight: form.weight ? parseFloat(form.weight) : null,
         status: 'open',
       }])
       if (error) setError(error.message)
@@ -119,7 +121,6 @@ export default function CreateRequestPage() {
 
             <div>
               <div className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">Тип груза</div>
-              {/* 2-col grid on mobile, wraps nicely */}
               <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Тип груза">
                 {cargoTypes.map(ct => (
                   <button
@@ -141,6 +142,23 @@ export default function CreateRequestPage() {
             </div>
 
             <div>
+              <label htmlFor="weight" className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2 block">
+                Вес груза (кг){' '}
+                <span className="text-zinc-600 normal-case font-normal">(необязательно)</span>
+              </label>
+              <input
+                id="weight"
+                type="number"
+                inputMode="numeric"
+                value={form.weight}
+                onChange={e => update('weight', e.target.value)}
+                placeholder="Например: 500"
+                min="0"
+                className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 outline-none transition-colors text-base min-h-[52px]"
+              />
+            </div>
+
+            <div>
               <label htmlFor="desc" className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2 block">
                 Описание груза
               </label>
@@ -148,7 +166,7 @@ export default function CreateRequestPage() {
                 id="desc"
                 value={form.description}
                 onChange={e => update('description', e.target.value)}
-                placeholder="Что везём? Вес, габариты, особые требования..."
+                placeholder="Габариты, особые требования..."
                 rows={3}
                 required
                 className="w-full bg-zinc-900 border border-zinc-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white placeholder:text-zinc-600 outline-none transition-colors text-base resize-none"
