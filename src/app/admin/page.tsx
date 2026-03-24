@@ -392,6 +392,8 @@ export default function AdminPage() {
           </div>
         )}
 
+      </div>
+
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm">
