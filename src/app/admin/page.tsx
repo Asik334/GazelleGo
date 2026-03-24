@@ -4,8 +4,6 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
-const ADMIN_EMAIL = 'aslanesenalin0@gmail.com'
-
 const statusLabel: Record<string, { label: string; color: string }> = {
   open:        { label: 'Ожидает', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
   accepted:    { label: 'В работе', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
@@ -36,7 +34,8 @@ export default function AdminPage() {
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
-    if (user.email !== ADMIN_EMAIL) { router.push('/dashboard'); return }
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+    if (profile?.role !== 'admin') { router.push('/dashboard'); return }
     await fetchAll()
     setLoading(false)
   }

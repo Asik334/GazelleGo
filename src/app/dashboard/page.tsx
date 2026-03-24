@@ -39,14 +39,12 @@ export default function DashboardPage() {
   const [reviewRating, setReviewRating] = useState(5)
   const [reviews, setReviews] = useState<Record<string, any[]>>({})
   const [clientProfiles, setClientProfiles] = useState<Record<string, any>>({})
-  const [adminEmail, setAdminEmail] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-      setAdminEmail(user.email || '')
 
       const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(prof)
@@ -93,7 +91,18 @@ export default function DashboardPage() {
     }
   }, [router])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => {
+    fetchData()
+
+    const channel = supabase
+      .channel('requests-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => {
+        fetchData()
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [fetchData])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -195,7 +204,7 @@ export default function DashboardPage() {
           <Link href="/profile" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 font-medium text-sm transition-colors">
             <span aria-hidden>👤</span> Профиль
           </Link>
-          {adminEmail === 'aslanesenalin0@gmail.com' && (
+          {profile?.role === 'admin' && (
             <Link href="/admin" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 font-medium text-sm transition-colors border border-transparent hover:border-red-500/20">
               <span aria-hidden>🛡</span> Админка
             </Link>
