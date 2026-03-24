@@ -3,18 +3,28 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactCompiler: true,
   compress: true,
-  
+
+  // ── Redirect root → /login ──────────────────────────────────────────
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/login',
+        permanent: false,
+      },
+    ]
+  },
+
   // Optimize images
   images: {
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
   // Security + caching headers
   async headers() {
     return [
       {
-        // Service worker must not be cached by browser (only by SW itself)
         source: '/sw.js',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
@@ -22,7 +32,6 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Manifest can be cached briefly
         source: '/manifest.json',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=86400' },
@@ -30,14 +39,12 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // Icons: cache long-term (hashed in manifest)
         source: '/icons/:file*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=2592000, immutable' },
         ],
       },
       {
-        // Security headers for all routes
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -50,8 +57,6 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Turbopack (default in Next.js 16) — empty config silences the warning
-  // webpack config removed: incompatible with Turbopack
   turbopack: {},
 };
 
