@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -11,16 +11,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
+
+  // Если сессия уже есть — сразу на dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) router.replace('/dashboard')
+      else setChecking(false)
+    })
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
-    else router.push('/dashboard')
-    setLoading(false)
+    if (error) { setError(error.message); setLoading(false) }
+    else router.replace('/dashboard')
   }
+
+  if (checking) return (
+    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center px-4">
@@ -29,7 +43,6 @@ export default function LoginPage() {
       </div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Logo */}
         <div className="flex items-center gap-3 mb-10 justify-center">
           <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center">
             <span className="text-black font-black text-xl">G</span>
