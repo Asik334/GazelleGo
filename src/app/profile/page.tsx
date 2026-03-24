@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
 import { SkeletonProfile } from '@/components/Skeletons'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -17,6 +18,8 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  const { supported: pushSupported, subscribed: pushSubscribed, loading: pushLoading, subscribe: pushSubscribe } = usePushNotifications()
 
   useEffect(() => { fetchProfile() }, [])
 
@@ -131,6 +134,16 @@ export default function ProfilePage() {
                 <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2.5 py-0.5 rounded-full font-semibold">
                   {profile?.role === 'client' ? '📦 Клиент' : '🚛 Водитель'}
                 </span>
+                {profile?.verified_status === 'verified' && (
+                  <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                    ✓ Верифицирован
+                  </span>
+                )}
+                {profile?.verified_status === 'pending' && (
+                  <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2.5 py-0.5 rounded-full font-semibold">
+                    ⏳ На проверке
+                  </span>
+                )}
                 {profile?.car_model && (
                   <span className="text-zinc-500 text-sm truncate">{profile.car_model}</span>
                 )}
@@ -186,6 +199,57 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
+
+        {/* ── Push Notifications ────────────────── */}
+        {pushSupported && (
+          <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold text-sm mb-0.5">🔔 Уведомления</div>
+                <div className="text-zinc-500 text-xs">
+                  {pushSubscribed ? 'Включены — вы получаете уведомления о заявках' : 'Включите, чтобы не пропускать заявки'}
+                </div>
+              </div>
+              {pushSubscribed ? (
+                <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-3 py-1.5 rounded-full font-semibold shrink-0">
+                  ✓ Включены
+                </span>
+              ) : (
+                <button
+                  onClick={pushSubscribe}
+                  disabled={pushLoading}
+                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-4 py-2 rounded-xl text-sm transition-colors shrink-0 min-h-[44px]"
+                >
+                  {pushLoading ? '...' : 'Включить'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Verification CTA (drivers only) ───── */}
+        {profile?.role === 'driver' && !['verified', 'pending'].includes(profile?.verified_status) && (
+          <Link href="/profile/verify" className="block bg-zinc-950 border border-amber-500/20 hover:border-amber-500/50 rounded-2xl p-5 mb-4 transition-colors">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-semibold text-sm mb-0.5">🛡 Верификация водителя</div>
+                <div className="text-zinc-500 text-xs">Загрузите документы и получите бейдж доверия</div>
+              </div>
+              <span className="text-amber-500 text-lg shrink-0">→</span>
+            </div>
+          </Link>
+        )}
+        {profile?.role === 'driver' && profile?.verified_status === 'pending' && (
+          <div className="bg-zinc-950 border border-yellow-500/20 rounded-2xl p-5 mb-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⏳</span>
+              <div>
+                <div className="font-semibold text-sm text-yellow-400 mb-0.5">Документы на проверке</div>
+                <div className="text-zinc-500 text-xs">Обычно занимает до 24 часов</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Stats Grid ────────────────────────── */}
         <div className="grid grid-cols-3 gap-3 mb-4">

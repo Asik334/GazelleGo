@@ -114,8 +114,23 @@ export default function DashboardPage() {
     try {
       const { error } = await supabase.from('requests')
         .update({ status: 'accepted', driver_id: profile.id }).eq('id', id)
-      if (error) alert('Ошибка: ' + error.message)
-      else await fetchData()
+      if (error) { alert('Ошибка: ' + error.message); return }
+
+      // Notify client
+      const req = requests.find(r => r.id === id)
+      if (req?.client_id) {
+        fetch('/api/push-send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: req.client_id,
+            title: 'Водитель принял заявку',
+            body: `${req.from_location} → ${req.to_location}`,
+            url: '/dashboard',
+          }),
+        }).catch(() => {})
+      }
+      await fetchData()
     } finally {
       setActionLoading(null)
     }
@@ -343,6 +358,11 @@ export default function DashboardPage() {
                     </span>
                     {req.cargo_type && (
                       <span className="text-xs text-zinc-500">{cargoLabel[req.cargo_type]}</span>
+                    )}
+                    {profile?.role === 'client' && req.driver_id && req.driverVerified === 'verified' && (
+                      <span className="text-xs bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full font-semibold">
+                        ✓ Верифицирован
+                      </span>
                     )}
                     <span className="text-zinc-700 text-xs ml-auto">
                       {new Date(req.created_at).toLocaleDateString('ru-RU')}

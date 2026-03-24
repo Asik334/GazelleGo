@@ -1,94 +1,62 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
 }
 
-let deferredPrompt: BeforeInstallPromptEvent | null = null
-
-export function usePWA() {
-  const [isInstallable, setIsInstallable] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [isOffline, setIsOffline] = useState(false)
-  const [swUpdate, setSwUpdate] = useState(false)
+export function usePushNotifications() {
+  const [supported, setSupported] = useState(false)
+  const [subscribed, setSubscribed] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-    }
-
-    // Online/Offline tracking
-    setIsOffline(!navigator.onLine)
-    const handleOnline = () => setIsOffline(false)
-    const handleOffline = () => setIsOffline(true)
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-
-    // PWA install prompt
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      deferredPrompt = e as BeforeInstallPromptEvent
-      setIsInstallable(true)
-    }
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-
-    // Track installation
-    window.addEventListener('appinstalled', () => {
-      setIsInstalled(true)
-      setIsInstallable(false)
-      deferredPrompt = null
-    })
-
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', { scope: '/' })
-        .then((registration) => {
-          console.log('[PWA] SW registered:', registration.scope)
-
-          // Check for updates
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing
-            newWorker?.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                setSwUpdate(true)
-              }
-            })
-          })
-        })
-        .catch((err) => console.error('[PWA] SW registration failed:', err))
-
-      // Listen for SW messages
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data?.type === 'SYNC_COMPLETE') {
-          window.dispatchEvent(new CustomEvent('gazelle:sync'))
-        }
-      })
-    }
-
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-    }
+    setSupported('serviceWorker' in navigator && 'PushManager' in window)
   }, [])
 
-  const installApp = async () => {
-    if (!deferredPrompt) return false
-    await deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    deferredPrompt = null
-    setIsInstallable(false)
-    return outcome === 'accepted'
+  const subscribe = async () => {
+    if (!supported) return
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const reg = await navigator.serviceWorker.ready
+      const existing = await reg.pushManager.getSubscription()
+      const sub = existing ?? await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      })
+
+      await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub.toJSON(), userId: user.id }),
+      })
+
+      setSubscribed(true)
+    } catch (err) {
+      console.error('Push subscribe error:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const updateApp = () => {
-    navigator.serviceWorker.controller?.postMessage({ type: 'SKIP_WAITING' })
-    window.location.reload()
+  const checkSubscribed = async () => {
+    if (!supported) return
+    const reg = await navigator.serviceWorker.ready
+    const sub = await reg.pushManager.getSubscription()
+    setSubscribed(!!sub)
   }
 
-  return { isInstallable, isInstalled, isOffline, swUpdate, installApp, updateApp }
+  useEffect(() => { checkSubscribed() }, [supported])
+
+  return { supported, subscribed, loading, subscribe }
 }

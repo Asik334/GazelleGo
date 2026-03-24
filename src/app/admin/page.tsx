@@ -20,7 +20,8 @@ const cargoLabel: Record<string, string> = {
 export default function AdminPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'stats' | 'users' | 'requests'>('stats')
+  const [tab, setTab] = useState<'stats' | 'users' | 'requests' | 'verify'>('stats')
+  const [verifyRequests, setVerifyRequests] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [requests, setRequests] = useState<any[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'user' | 'request'; id: string; name: string } | null>(null)
@@ -41,12 +42,14 @@ export default function AdminPage() {
   }
 
   const fetchAll = async () => {
-    const [{ data: usersData }, { data: reqData }] = await Promise.all([
+    const [{ data: usersData }, { data: reqData }, { data: verifyData }] = await Promise.all([
       supabase.from('profiles').select('*').order('created_at', { ascending: false }),
       supabase.from('requests').select('*').order('created_at', { ascending: false }),
+      supabase.from('verification_requests').select('*, profiles(name, phone)').order('created_at', { ascending: false }),
     ])
     setUsers(usersData || [])
     setRequests(reqData || [])
+    setVerifyRequests(verifyData || [])
   }
 
   const deleteRequest = async (id: string) => {
@@ -65,6 +68,25 @@ export default function AdminPage() {
   }
 
   const getUserName = (id: string) => users.find(u => u.id === id)?.name || '—'
+
+  const handleVerify = async (driverId: string, verdict: 'verified' | 'rejected') => {
+    await Promise.all([
+      supabase.from('profiles').update({ verified_status: verdict }).eq('id', driverId),
+      supabase.from('verification_requests').update({ status: verdict }).eq('driver_id', driverId),
+    ])
+    // Notify driver
+    fetch('/api/push-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: driverId,
+        title: verdict === 'verified' ? '✅ Верификация пройдена!' : '❌ Верификация отклонена',
+        body: verdict === 'verified' ? 'Ваш профиль подтверждён. Клиенты видят бейдж.' : 'Документы не прошли проверку. Загрузите новые.',
+        url: '/profile',
+      }),
+    }).catch(() => {})
+    await fetchAll()
+  }
 
   // Stats
   const stats = {
@@ -126,6 +148,7 @@ export default function AdminPage() {
             { key: 'stats', label: '📊 Статистика' },
             { key: 'users', label: `👥 Пользователи (${users.length})` },
             { key: 'requests', label: `📋 Заявки (${requests.length})` },
+            { key: 'verify', label: `🛡 Верификация (${verifyRequests.filter(v => v.status === 'pending').length})` },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
               className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${tab === t.key ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-white'}`}>
@@ -307,9 +330,68 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-      </div>
 
-      {/* Delete confirm modal */}
+        {/* VERIFY TAB */}
+        {tab === 'verify' && (
+          <div className="space-y-3">
+            {verifyRequests.length === 0 && (
+              <div className="text-center py-16 text-zinc-600">Заявок на верификацию нет</div>
+            )}
+            {verifyRequests.map(vr => {
+              const statusColor = vr.status === 'pending'
+                ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                : vr.status === 'verified'
+                  ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                  : 'bg-red-500/20 text-red-400 border-red-500/30'
+              const statusLabel = vr.status === 'pending' ? 'На проверке' : vr.status === 'verified' ? 'Верифицирован' : 'Отклонён'
+              const files: any[] = vr.files || []
+              return (
+                <div key={vr.driver_id} className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-white">{vr.profiles?.name || '—'}</span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
+                      </div>
+                      <div className="text-zinc-500 text-sm mb-3">{vr.profiles?.phone || 'Телефон не указан'}</div>
+                      {files.length > 0 && (
+                        <div className="flex gap-2 flex-wrap mb-3">
+                          {files.map((f: any, i: number) => {
+                            const { data } = supabase.storage.from('verifications').getPublicUrl(f.path)
+                            return (
+                              <a key={i} href={data.publicUrl} target="_blank" rel="noopener noreferrer"
+                                className="text-xs bg-zinc-900 border border-zinc-700 hover:border-amber-500/50 text-zinc-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors">
+                                {f.type === 'license' ? '📄 Права' : '🚛 Авто'}
+                              </a>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <div className="text-zinc-600 text-xs">{new Date(vr.created_at).toLocaleDateString('ru-RU')}</div>
+                    </div>
+                    {vr.status === 'pending' && (
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleVerify(vr.driver_id, 'verified')}
+                          className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors min-h-[44px]"
+                        >
+                          ✓ Одобрить
+                        </button>
+                        <button
+                          onClick={() => handleVerify(vr.driver_id, 'rejected')}
+                          className="bg-red-600/80 hover:bg-red-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors min-h-[44px]"
+                        >
+                          ✕ Отклонить
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm">
