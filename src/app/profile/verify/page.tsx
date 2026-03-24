@@ -55,13 +55,28 @@ export default function VerifyPage() {
         uploads.push({ type: 'car', path })
       }
 
-      // Save verification request
-      await supabase.from('verification_requests').upsert({
-        driver_id: userId,
-        status: 'pending',
-        files: uploads,
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'driver_id' })
+      // Save verification request — try insert first, then update if exists
+      const { error: insertErr } = await supabase
+        .from('verification_requests')
+        .insert({
+          driver_id: userId,
+          status: 'pending',
+          files: uploads,
+          created_at: new Date().toISOString(),
+        })
+
+      if (insertErr) {
+        // Row already exists — update it
+        const { error: updateErr } = await supabase
+          .from('verification_requests')
+          .update({
+            status: 'pending',
+            files: uploads,
+            created_at: new Date().toISOString(),
+          })
+          .eq('driver_id', userId)
+        if (updateErr) throw updateErr
+      }
 
       // Update profile status
       await supabase.from('profiles')
