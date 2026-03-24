@@ -60,3 +60,48 @@ export function usePushNotifications() {
 
   return { supported, subscribed, loading, subscribe }
 }
+
+export function usePWA() {
+  const [isOffline, setIsOffline] = useState(false)
+  const [isInstallable, setIsInstallable] = useState(false)
+  const [swUpdate, setSwUpdate] = useState(false)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false)
+    const handleOffline = () => setIsOffline(true)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    setIsOffline(!navigator.onLine)
+
+    const handleInstall = (e: any) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setIsInstallable(true)
+    }
+    window.addEventListener('beforeinstallprompt', handleInstall)
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => setSwUpdate(true))
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('beforeinstallprompt', handleInstall)
+    }
+  }, [])
+
+  const installApp = async () => {
+    if (!deferredPrompt) return false
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    setDeferredPrompt(null)
+    setIsInstallable(false)
+    return outcome === 'accepted'
+  }
+
+  const updateApp = () => window.location.reload()
+
+  return { isOffline, isInstallable, swUpdate, installApp, updateApp }
+}

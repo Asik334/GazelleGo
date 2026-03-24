@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
 import { SkeletonProfile } from '@/components/Skeletons'
-import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { usePushNotifications } from '@/hooks/usePWA'
 
 export default function ProfilePage() {
   const router = useRouter()
